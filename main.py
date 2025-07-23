@@ -31,6 +31,22 @@ print("\n\t\t\t--- Basic statistics for numerical columns: ---")
 print(ratings.describe())
 print(users['Age'].value_counts())
 
+# Unique counts
+print("\n\t\t\t--- Unique counts in each DataFrame: ---")
+print(f"Unique Users: {ratings['UserID'].nunique()}")
+print(f"Unique Movies: {ratings['MovieID'].nunique()}")
+
+# Users giving consistent high/low ratings
+print("\n\t\t\t--- User ratings: ---")
+user_ratings = ratings.groupby('UserID')['Rating'].agg(['mean', 'std'])
+user_ratings = user_ratings[user_ratings['mean'] > 4.7][user_ratings['std'] < 0.5].sort_values(by='mean', ascending=False)
+print("Users with consistently high ratings:")
+print(user_ratings)
+print("\nUsers with consistently low ratings:")
+user_ratings = ratings.groupby('UserID')['Rating'].agg(['mean', 'std'])
+user_ratings = user_ratings[user_ratings['mean'] < 2.0][user_ratings['std'] < 0.5].sort_values(by='mean', ascending=True)
+print(user_ratings)
+
 # How many ratings per user?
 user_counts = ratings['UserID'].value_counts()
 sns.histplot(user_counts, bins=50, kde=True)
@@ -91,4 +107,12 @@ sns.histplot(users['Age'], bins=10, kde=True)
 plt.title('User Age Distribution')
 plt.xlabel('Age')
 plt.ylabel('Number of Users')
+plt.show()
+
+# Scatter plot: Number of ratings vs average rating
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=movie_avg, x='count', y='mean')
+plt.title('Number of Ratings vs Average Rating')
+plt.xlabel('Number of Ratings')
+plt.ylabel('Average Rating')
 plt.show()
