@@ -2,6 +2,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from surprise import Dataset, Reader
 
 #Load the rating, movie and user files
 ratings = pd.read_csv('ratings.dat', sep = '::', engine = 'python', encoding = 'latin-1', names = ['UserID', 'MovieID', 'Rating', 'Timestamp'])
@@ -116,3 +119,36 @@ plt.title('Number of Ratings vs Average Rating')
 plt.xlabel('Number of Ratings')
 plt.ylabel('Average Rating')
 plt.show()
+
+# TF-IDF for movie titles
+movies['Title'] = movies['Title'].fillna('')
+tfidf = TfidfVectorizer(stop_words='english')
+# Turns movie titles into TF-IDF vectors
+tfidf_matrix = tfidf.fit_transform(movies['Title'])
+user_id = 1
+# Filtering table for user_id = 1
+user_data = ratings_movies[ratings_movies['UserID'] == user_id]
+# Binary label: 1 if rating >= 4, else 0
+user_data['Liked'] = (user_data['Rating'] >= 4).astype(int)
+# Only get the TF-IDF rows for the movie this user rated
+user_tfidf = tfidf_matrix[user_data['MovieID']]
+# Binary classification model to predict if the user would like a movie
+model = LogisticRegression()
+# Fit the model using the user's TF-IDF vectors and their ratings
+model.fit(user_tfidf, user_data['Liked']) #Train the model
+# Predict probabilities for all movies
+all_preds = model.predict_proba(tfidf_matrix)[:, 1]
+# Get indices of movies sorted by predicted like probability
+top_movie_indices = all_preds.argsort()[::-1]
+
+# Create a DataFrame of predictions
+movies['predicted_like_prob'] = all_preds
+recommendations = movies.sort_values('predicted_like_prob', ascending=False)
+
+# Filter out movies the user has already rated
+rated_movies = set(user_data['MovieID'])
+recommendations = recommendations[~recommendations['MovieID'].isin(rated_movies)] # Remove rated movies
+
+# Show top recommended movies
+print("\n\t\t\t--- Top Recommended Movies for User ID 1: ---")
+print(recommendations[['Title', 'predicted_like_prob']].head(10))
