@@ -4,7 +4,15 @@ import seaborn as sns
 from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import recall_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from surprise import Dataset, Reader
+import os
+
+# Create visuals folder if not exists
+if not os.path.exists("visuals"):
+    os.makedirs("visuals")
 
 #Load the rating, movie and user files
 ratings = pd.read_csv('ratings.dat', sep = '::', engine = 'python', encoding = 'latin-1', names = ['UserID', 'MovieID', 'Rating', 'Timestamp'])
@@ -56,6 +64,7 @@ sns.histplot(user_counts, bins=50, kde=True)
 plt.title('Number of Ratings per User')
 plt.xlabel('Ratings per user')
 plt.ylabel('Number of Users')
+plt.savefig("visuals/ratings_per_user.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # How many ratings per movie?
@@ -64,6 +73,7 @@ sns.histplot(movie_counts, bins=50, kde=True)
 plt.title('Number of Ratings per Movie')
 plt.xlabel('Ratings per Movie')
 plt.ylabel('Number of Movies')
+plt.savefig("visuals/ratings_per_movie.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # Merge ratings with movie titles
@@ -77,6 +87,7 @@ plt.title('Most Rated Movies')
 plt.xlabel('Number of Ratings')
 plt.ylabel('Movie Title')
 plt.gca().invert_yaxis()
+plt.savefig("visuals/top_rated_movies.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # Average rating per movie
@@ -87,6 +98,7 @@ plt.title('Top Rated Movies (min 100 ratings)')
 plt.xlabel('Average Rating')
 plt.ylabel('Movie Title')
 plt.gca().invert_yaxis()
+plt.savefig("visuals/top_rated_movies_avg.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # Genre breakdown
@@ -99,17 +111,20 @@ pd.Series(genre_counts).sort_values(ascending=True).plot(kind='barh', figsize=(1
 plt.title('Genre Distribution')
 plt.xlabel('Number of Movies')
 plt.ylabel('Genre')
+plt.savefig("visuals/genre_distribution.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # User demographics
 sns.countplot(data=users, x='Gender')
 plt.title('Gender Distribution of Users')
+plt.savefig("visuals/gender_distribution.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 sns.histplot(users['Age'], bins=10, kde=True)
 plt.title('User Age Distribution')
 plt.xlabel('Age')
 plt.ylabel('Number of Users')
+plt.savefig("visuals/age_distribution.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # Scatter plot: Number of ratings vs average rating
@@ -118,6 +133,7 @@ sns.scatterplot(data=movie_avg, x='count', y='mean')
 plt.title('Number of Ratings vs Average Rating')
 plt.xlabel('Number of Ratings')
 plt.ylabel('Average Rating')
+plt.savefig("visuals/ratings_vs_avg.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 # TF-IDF for movie titles
@@ -152,3 +168,39 @@ recommendations = recommendations[~recommendations['MovieID'].isin(rated_movies)
 # Show top recommended movies
 print("\n\t\t\t--- Top Recommended Movies for User ID 1: ---")
 print(recommendations[['Title', 'predicted_like_prob']].head(10))
+
+# Save bar chart of top 10 recommendations
+top_recs = recommendations.head(10)
+plt.figure(figsize=(10, 6))
+plt.barh(top_recs['Title'], top_recs['predicted_like_prob'])
+plt.xlabel('Predicted Like Probability')
+plt.ylabel('Movie Title')
+plt.title(f'Top Recommended Movies for User {user_id}')
+plt.gca().invert_yaxis()
+plt.savefig(f"visuals/top_recommendations_user_{user_id}.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+# Split user data into train/test sets
+train_data, test_data = train_test_split(user_data, test_size=0.2, random_state=42)
+
+model.fit(tfidf_matrix[train_data['MovieID']], train_data['Liked'])
+
+# Predictions on the test set
+y_true = test_data['Liked']
+y_pred_proba = model.predict_proba(tfidf_matrix[test_data['MovieID']])[:, 1]
+y_pred = (y_pred_proba >= 0.5).astype(int)
+
+# Calculate accuracy
+accuracy = accuracy_score(y_true, y_pred)
+precision = precision_score(y_true, y_pred)
+recall = recall_score(y_true, y_pred)
+f1 = f1_score(y_true, y_pred)
+roc_auc = roc_auc_score(y_true, y_pred_proba)
+
+# Print metrics
+print("\n\t\t\t--- Model Evaluation Metrics: ---")
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
+print(f"F1 Score: {f1:.4f}")
+print(f"ROC AUC: {roc_auc:.4f}")
